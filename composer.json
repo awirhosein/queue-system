@@ -6,6 +6,9 @@
             "email": "awirhosein@yahoo.com"
         }
     ],
+    "require": {
+        "ramsey/uuid": "^4.9"
+    },
     "require-dev": {
         "phpunit/phpunit": "^12.5"
     },
