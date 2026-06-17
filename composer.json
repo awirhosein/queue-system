@@ -1,0 +1,18 @@
+{
+    "name": "awirhosein/queue-system",
+    "authors": [
+        {
+            "name": "awirhosein",
+            "email": "awirhosein@yahoo.com"
+        }
+    ],
+    "require-dev": {
+        "phpunit/phpunit": "^12.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Awirhosein\\QueueSystem\\": "src/",
+            "Tests\\": "tests/"
+        }
+    }
+}
