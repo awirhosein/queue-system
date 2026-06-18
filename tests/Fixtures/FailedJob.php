@@ -2,9 +2,9 @@
 
 namespace Tests\Fixtures;
 
-use Awirhosein\QueueSystem\JobInterface;
+use Awirhosein\QueueSystem\JobContract;
 
-class FailedJob implements JobInterface
+class FailedJob implements JobContract
 {
     public function handle(): void
     {

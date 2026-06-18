@@ -24,7 +24,7 @@ class WorkerTest extends TestCase
 
         $worker->work($queue);
 
-        $this->assertCount(2, $queue->failed_jobs);
+        $this->assertCount(2, $queue->failedJobs());
         $this->assertTrue($handledJob->handled);
     }
 }

@@ -2,7 +2,7 @@
 
 namespace Awirhosein\QueueSystem;
 
-interface JobInterface
+interface JobContract
 {
     public function handle(): void;
 }

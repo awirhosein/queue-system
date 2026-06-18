@@ -2,9 +2,9 @@
 
 namespace Tests\Fixtures;
 
-use Awirhosein\QueueSystem\JobInterface;
+use Awirhosein\QueueSystem\JobContract;
 
-class HandledJob implements JobInterface
+class HandledJob implements JobContract
 {
     public bool $handled = false;
 

@@ -2,7 +2,9 @@
 
 namespace Tests;
 
+use Awirhosein\QueueSystem\InMemoryDriver;
 use Awirhosein\QueueSystem\Queue;
+use Awirhosein\QueueSystem\QueueContract;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Fixtures\FailedJob;
 use Tests\Fixtures\HandledJob;
@@ -24,7 +26,7 @@ class QueueTest extends TestCase
     {
         $this->queue->push(new Job());
 
-        $this->assertCount(1, $this->queue->jobs);
+        $this->assertCount(1, $this->queue->jobs());
     }
 
     #[Test]
@@ -52,7 +54,7 @@ class QueueTest extends TestCase
         $this->queue->push(new FailedJob());
         $this->queue->run();
 
-        $this->assertCount(1, $this->queue->failed_jobs);
+        $this->assertCount(1, $this->queue->failedJobs());
     }
 
     #[Test]
@@ -61,7 +63,7 @@ class QueueTest extends TestCase
         $this->queue->push(new FailedJob());
         $this->queue->run();
 
-        $this->assertSame('failed job', $this->queue->failed_jobs[0]['message']);
+        $this->assertSame('failed job', $this->queue->failedJobs()[0]['message']);
     }
 
     #[Test]
@@ -69,15 +71,15 @@ class QueueTest extends TestCase
     {
         $this->queue->push(new FailedJob());
         $this->queue->run();
-        $this->assertCount(1, $this->queue->failed_jobs);
+        $this->assertCount(1, $this->queue->failedJobs());
 
-        $this->queue->retry($this->queue->failed_jobs[0]['uuid']);
-        $this->assertCount(1, $this->queue->jobs);
-        $this->assertCount(0, $this->queue->failed_jobs);
+        $this->queue->retry($this->queue->failedJobs()[0]['uuid']);
+        $this->assertCount(1, $this->queue->jobs());
+        $this->assertCount(0, $this->queue->failedJobs());
 
         $this->queue->run();
-        $this->assertCount(0, $this->queue->jobs);
-        $this->assertCount(1, $this->queue->failed_jobs);
+        $this->assertCount(0, $this->queue->jobs());
+        $this->assertCount(1, $this->queue->failedJobs());
     }
 
     #[Test]
@@ -87,8 +89,8 @@ class QueueTest extends TestCase
         $this->queue->push(new FailedJob(), $future);
         $this->queue->run();
 
-        $this->assertCount(0, $this->queue->failed_jobs);
-        $this->assertCount(1, $this->queue->jobs);
+        $this->assertCount(0, $this->queue->failedJobs());
+        $this->assertCount(1, $this->queue->jobs());
     }
 
     #[Test]
@@ -96,10 +98,9 @@ class QueueTest extends TestCase
     {
         $future = time() + 60;
 
-        $queue = new class ($future) extends Queue {
-            public function __construct(
-                private int $future
-            ) {
+        $driver = new class ($future) extends InMemoryDriver {
+            public function __construct(private int $future)
+            {
             }
 
             protected function now(): int
@@ -108,10 +109,17 @@ class QueueTest extends TestCase
             }
         };
 
+        $queue = new class ($driver) extends Queue {
+            public function __construct(public QueueContract $driver)
+            {
+                parent::__construct($driver);
+            }
+        };
+
         $queue->push(new FailedJob(), $future);
         $queue->run();
 
-        $this->assertCount(1, $queue->failed_jobs);
-        $this->assertCount(0, $queue->jobs);
+        $this->assertCount(1, $queue->failedJobs());
+        $this->assertCount(0, $queue->jobs());
     }
 }
