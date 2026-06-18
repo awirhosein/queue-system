@@ -28,13 +28,12 @@ class Queue
             return;
         }
 
-        $job['attempts'] += 1;
-        $this->jobs[0]['attempts'] = $job['attempts'];
+        $job = $this->attempt($job['uuid']);
 
         try {
             $job['payload']->handle();
 
-            array_shift($this->jobs);
+            $this->remove($job['uuid']);
         } catch (\Exception $e) {
 
             // retry after fail
@@ -43,8 +42,7 @@ class Queue
                 return;
             }
 
-            // remove from jobs
-            array_shift($this->jobs);
+            $this->remove($job['uuid']);
 
             // add to failed jobs
             $this->failed_jobs[] = [
@@ -78,11 +76,33 @@ class Queue
 
     public function isEmpty(): bool
     {
-        return ! isset($this->jobs[0]);
+        return empty($this->jobs);
     }
 
     protected function now(): int
     {
         return time();
+    }
+
+    protected function attempt(string $uuid): ?array
+    {
+        foreach ($this->jobs as &$job) {
+            if ($job['uuid'] == $uuid) {
+                $job['attempts'] += 1;
+
+                return $job;
+            }
+        }
+
+        return null;
+    }
+
+    protected function remove(string $uuid): void
+    {
+        foreach ($this->jobs as $key => $value) {
+            if ($value['uuid'] == $uuid) {
+                unset($this->jobs[$key]);
+            }
+        }
     }
 }
