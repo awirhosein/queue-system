@@ -79,4 +79,39 @@ class QueueTest extends TestCase
         $this->assertCount(0, $this->queue->jobs);
         $this->assertCount(1, $this->queue->failed_jobs);
     }
+
+    #[Test]
+    public function a_worker_ignores_jobs_that_are_not_yet_available()
+    {
+        $future = time() + 60;
+        $this->queue->push(new FailedJob(), $future);
+        $this->queue->run();
+
+        $this->assertCount(0, $this->queue->failed_jobs);
+        $this->assertCount(1, $this->queue->jobs);
+    }
+
+    #[Test]
+    public function a_worker_executes_a_delayed_job_when_its_scheduled_time_arrives()
+    {
+        $future = time() + 60;
+
+        $queue = new class ($future) extends Queue {
+            public function __construct(
+                private int $future
+            ) {
+            }
+
+            protected function now(): int
+            {
+                return $this->future + 1;
+            }
+        };
+
+        $queue->push(new FailedJob(), $future);
+        $queue->run();
+
+        $this->assertCount(1, $queue->failed_jobs);
+        $this->assertCount(0, $queue->jobs);
+    }
 }

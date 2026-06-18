@@ -10,18 +10,14 @@ class Queue
     public array $failed_jobs = [];
     public int $max_attempts = 3;
 
-    public function push($job): void
+    public function push($job, ?int $availableAt = null): void
     {
         $this->jobs[] = [
-            'uuid'     => Uuid::uuid4()->toString(),
-            'payload'  => $job,
-            'attempts' => 0,
+            'uuid'         => Uuid::uuid4()->toString(),
+            'payload'      => $job,
+            'attempts'     => 0,
+            'available_at' => $availableAt,
         ];
-    }
-
-    public function next()
-    {
-        return $this->jobs[0] ?? null;
     }
 
     public function run(): void
@@ -59,6 +55,17 @@ class Queue
         }
     }
 
+    public function next()
+    {
+        foreach ($this->jobs as $job) {
+            if ($job['available_at'] <= $this->now()) {
+                return $job;
+            }
+        }
+
+        return null;
+    }
+
     public function retry(string $uuid): void
     {
         foreach ($this->failed_jobs as $key => $failed_job) {
@@ -72,5 +79,10 @@ class Queue
     public function isEmpty(): bool
     {
         return ! isset($this->jobs[0]);
+    }
+
+    protected function now(): int
+    {
+        return time();
     }
 }
