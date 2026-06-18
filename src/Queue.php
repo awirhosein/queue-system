@@ -68,4 +68,9 @@ class Queue
             }
         }
     }
+
+    public function isEmpty(): bool
+    {
+        return ! isset($this->jobs[0]);
+    }
 }
