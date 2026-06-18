@@ -4,6 +4,9 @@ namespace Tests;
 
 use Awirhosein\QueueSystem\Queue;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Fixtures\FailedJob;
+use Tests\Fixtures\HandledJob;
+use Tests\Fixtures\Job;
 
 class QueueTest extends TestCase
 {
@@ -19,7 +22,7 @@ class QueueTest extends TestCase
     #[Test]
     public function a_job_can_be_pushed_to_the_queue()
     {
-        $this->queue->push('job');
+        $this->queue->push(new Job());
 
         $this->assertCount(1, $this->queue->jobs);
     }
@@ -27,24 +30,17 @@ class QueueTest extends TestCase
     #[Test]
     public function a_worker_can_retrieve_the_next_pending_job()
     {
-        $this->queue->push('job');
+        $this->queue->push(new Job());
 
-        $this->assertSame('job', $this->queue->next()['payload']);
+        $this->assertInstanceOf(Job::class, $this->queue->next()['payload']);
     }
 
     #[Test]
     public function a_worker_executes_a_job()
     {
-        $job = new class {
-            public bool $handled = false;
-
-            public function handle(): void
-            {
-                $this->handled = true;
-            }
-        };
-
+        $job = new HandledJob();
         $this->queue->push($job);
+
         $this->queue->run();
 
         $this->assertTrue($job->handled);
@@ -53,14 +49,7 @@ class QueueTest extends TestCase
     #[Test]
     public function a_failed_job_is_marked_as_failed()
     {
-        $job = new class {
-            public function handle(): void
-            {
-                throw new \Exception('failed job');
-            }
-        };
-
-        $this->queue->push($job);
+        $this->queue->push(new FailedJob());
         $this->queue->run();
 
         $this->assertCount(1, $this->queue->failed_jobs);
@@ -69,14 +58,7 @@ class QueueTest extends TestCase
     #[Test]
     public function a_faild_job_records_the_exception_message()
     {
-        $job = new class {
-            public function handle(): void
-            {
-                throw new \Exception('failed job');
-            }
-        };
-
-        $this->queue->push($job);
+        $this->queue->push(new FailedJob());
         $this->queue->run();
 
         $this->assertSame('failed job', $this->queue->failed_jobs[0]['message']);
@@ -85,26 +67,16 @@ class QueueTest extends TestCase
     #[Test]
     public function a_job_can_be_retried_after_failure()
     {
-        $job = new class {
-            public function handle(): void
-            {
-                throw new \Exception('failed job');
-            }
-        };
-
-        $this->queue->push($job);
+        $this->queue->push(new FailedJob());
         $this->queue->run();
-
         $this->assertCount(1, $this->queue->failed_jobs);
 
         $this->queue->retry($this->queue->failed_jobs[0]['uuid']);
-
-        $this->assertCount(0, $this->queue->failed_jobs);
         $this->assertCount(1, $this->queue->jobs);
+        $this->assertCount(0, $this->queue->failed_jobs);
 
         $this->queue->run();
-
-        $this->assertCount(1, $this->queue->failed_jobs);
         $this->assertCount(0, $this->queue->jobs);
+        $this->assertCount(1, $this->queue->failed_jobs);
     }
 }
