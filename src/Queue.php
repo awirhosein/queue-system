@@ -4,6 +4,8 @@ namespace Awirhosein\QueueSystem;
 
 class Queue
 {
+    protected int $max_attempts = 3;
+
     public function __construct(
         public QueueContract $driver = new InMemoryDriver()
     ) {
@@ -16,7 +18,35 @@ class Queue
 
     public function run(): void
     {
-        $this->driver->run();
+        $job = $this->next();
+
+        if (is_null($job)) {
+            return;
+        }
+
+        $job = $this->attempt($job);
+
+        try {
+            $job['payload']->handle();
+
+            $this->remove($job['uuid']);
+        } catch (\Exception $e) {
+
+            // retry after fail
+            if ($job['attempts'] < $this->max_attempts) {
+                $this->run();
+                return;
+            }
+
+            $this->remove($job['uuid']);
+
+            $this->addFailedJob($job, $e->getMessage());
+        }
+    }
+
+    public function addFailedJob(array $job, string $message): void
+    {
+        $this->driver->markAsFailed($job, $message);
     }
 
     public function next()
@@ -32,6 +62,11 @@ class Queue
     public function isEmpty(): bool
     {
         return $this->driver->isEmpty();
+    }
+
+    public function attempt($job): ?array
+    {
+        return $this->driver->attempt($job);
     }
 
     public function remove(string $uuid): void

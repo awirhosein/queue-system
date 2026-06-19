@@ -2,16 +2,16 @@
 
 namespace Awirhosein\QueueSystem;
 
+use PDO;
 use Ramsey\Uuid\Uuid;
 
 class DatabaseDriver implements QueueContract
 {
-    protected int $max_attempts = 3;
-    protected \PDO $pdo;
+    protected PDO $pdo;
 
     public function __construct()
     {
-        $this->pdo = new \PDO('sqlite:' . __DIR__ . '/../database/queue.sqlite');
+        $this->pdo = new PDO('sqlite:' . __DIR__ . '/../database/queue.sqlite');
         $this->createTables();
     }
 
@@ -57,43 +57,19 @@ class DatabaseDriver implements QueueContract
         ]);
     }
 
-    public function run(): void
+    public function markAsFailed(array $job, string $message): void
     {
-        $job = $this->next();
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO failed_jobs (uuid, payload, message, created_at)
+            VALUES (?, ?, ?, ?)"
+        );
 
-        if (is_null($job)) {
-            return;
-        }
-
-        $job = $this->attempt($job);
-
-        try {
-            $job['payload']->handle();
-
-            $this->remove($job['uuid']);
-        } catch (\Exception $e) {
-
-            // retry after fail
-            if ($job['attempts'] < $this->max_attempts) {
-                $this->run();
-                return;
-            }
-
-            $this->remove($job['uuid']);
-
-            // add to failed jobs
-            $stmt = $this->pdo->prepare(
-                "INSERT INTO failed_jobs (uuid, payload, message, created_at)
-                VALUES (?, ?, ?, ?)"
-            );
-
-            $stmt->execute([
-                $job['uuid'],
-                serialize($job['payload']),
-                $e->getMessage(),
-                time(),
-            ]);
-        }
+        $stmt->execute([
+            $job['uuid'],
+            serialize($job['payload']),
+            $message,
+            time(),
+        ]);
     }
 
     public function next()
@@ -105,7 +81,7 @@ class DatabaseDriver implements QueueContract
         );
 
         $stmt->execute([$this->now()]);
-        $job = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $job = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($job) {
             $job['payload'] = unserialize($job['payload']);
@@ -121,7 +97,7 @@ class DatabaseDriver implements QueueContract
             "SELECT * FROM failed_jobs WHERE uuid = ?"
         );
         $stmt->execute([$uuid]);
-        $failed_job = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $failed_job = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (! $failed_job) {
             return;
@@ -143,7 +119,7 @@ class DatabaseDriver implements QueueContract
         );
 
         $stmt->execute();
-        return $stmt->fetch(\PDO::FETCH_ASSOC)['count'] === 0;
+        return $stmt->fetch(PDO::FETCH_ASSOC)['count'] === 0;
     }
 
     protected function now(): int
@@ -151,7 +127,7 @@ class DatabaseDriver implements QueueContract
         return time();
     }
 
-    protected function attempt($job): ?array
+    public function attempt($job): ?array
     {
         $job['attempts'] += 1;
 

@@ -8,7 +8,6 @@ class InMemoryDriver implements QueueContract
 {
     protected array $jobs = [];
     protected array $failed_jobs = [];
-    protected int $max_attempts = 3;
 
     public function push($job, ?int $availableAt = null): void
     {
@@ -20,37 +19,13 @@ class InMemoryDriver implements QueueContract
         ];
     }
 
-    public function run(): void
+    public function markAsFailed(array $job, string $message): void
     {
-        $job = $this->next();
-
-        if (is_null($job)) {
-            return;
-        }
-
-        $job = $this->attempt($job['uuid']);
-
-        try {
-            $job['payload']->handle();
-
-            $this->remove($job['uuid']);
-        } catch (\Exception $e) {
-
-            // retry after fail
-            if ($job['attempts'] < $this->max_attempts) {
-                $this->run();
-                return;
-            }
-
-            $this->remove($job['uuid']);
-
-            // add to failed jobs
-            $this->failed_jobs[] = [
-                'uuid'    => $job['uuid'],
-                'payload' => $job['payload'],
-                'message' => $e->getMessage(),
-            ];
-        }
+        $this->failed_jobs[] = [
+            'uuid'    => $job['uuid'],
+            'payload' => $job['payload'],
+            'message' => $message,
+        ];
     }
 
     public function next()
@@ -84,13 +59,13 @@ class InMemoryDriver implements QueueContract
         return time();
     }
 
-    protected function attempt(string $uuid): ?array
+    public function attempt($job): ?array
     {
-        foreach ($this->jobs as &$job) {
-            if ($job['uuid'] == $uuid) {
-                $job['attempts'] += 1;
+        foreach ($this->jobs as &$item) {
+            if ($item['uuid'] == $job['uuid']) {
+                $item['attempts'] += 1;
 
-                return $job;
+                return $item;
             }
         }
 

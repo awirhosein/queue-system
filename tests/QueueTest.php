@@ -59,7 +59,7 @@ class QueueTest extends TestCase
     }
 
     #[Test]
-    public function a_faild_job_records_the_exception_message()
+    public function a_failed_job_records_the_exception_message()
     {
         $this->queue->push(new FailedJob());
         $this->queue->run();
