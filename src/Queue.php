@@ -40,11 +40,11 @@ class Queue
 
             $this->remove($job['uuid']);
 
-            $this->addFailedJob($job, $e->getMessage());
+            $this->markAsFailed($job, $e->getMessage());
         }
     }
 
-    public function addFailedJob(array $job, string $message): void
+    public function markAsFailed(array $job, string $message): void
     {
         $this->driver->markAsFailed($job, $message);
     }
