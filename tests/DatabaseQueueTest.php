@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use Awirhosein\QueueSystem\DatabaseDriver;
 use Awirhosein\QueueSystem\InMemoryDriver;
 use Awirhosein\QueueSystem\Queue;
 use Awirhosein\QueueSystem\QueueContract;
@@ -11,15 +12,27 @@ use Tests\Fixtures\FailedJob;
 use Tests\Fixtures\HandledJob;
 use Tests\Fixtures\Job;
 
-class QueueTest extends TestCase
+class DatabaseQueueTest extends TestCase
 {
     protected Queue $queue;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->refreshDatabase();
 
-        $this->queue = new Queue();
+        $this->queue = new Queue(
+            new DatabaseDriver()
+        );
+    }
+
+    protected function refreshDatabase(): void
+    {
+        $pdo = new \PDO('sqlite:' . __DIR__ . '/../database/queue.sqlite');
+        $pdo->exec("
+            DROP TABLE IF EXISTS jobs;
+            DROP TABLE IF EXISTS failed_jobs;
+        ");
     }
 
     #[Test]
@@ -41,12 +54,12 @@ class QueueTest extends TestCase
     #[Test]
     public function a_worker_executes_a_job()
     {
-        $job = new HandledJob();
-        $this->queue->push($job);
+        $this->queue->push(new HandledJob());
 
         $this->queue->run();
 
-        $this->assertTrue($job->handled);
+        $this->assertEmpty($this->queue->jobs());
+        $this->assertEmpty($this->queue->failedJobs());
     }
 
     #[Test]
@@ -132,11 +145,11 @@ class QueueTest extends TestCase
         $this->queue->push(new Job());
         $this->queue->push(new FailedJob());
         $this->queue->push(new FailedJob());
-        $this->queue->push($handledJob = new HandledJob());
+        $this->queue->push(new HandledJob());
 
         $worker->work($this->queue);
 
         $this->assertCount(2, $this->queue->failedJobs());
-        $this->assertTrue($handledJob->handled);
+        $this->assertEmpty($this->queue->jobs());
     }
 }
