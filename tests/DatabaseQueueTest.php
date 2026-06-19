@@ -3,7 +3,6 @@
 namespace Tests;
 
 use Awirhosein\QueueSystem\DatabaseDriver;
-use Awirhosein\QueueSystem\InMemoryDriver;
 use Awirhosein\QueueSystem\Queue;
 use Awirhosein\QueueSystem\QueueContract;
 use Awirhosein\QueueSystem\Worker;
@@ -72,7 +71,7 @@ class DatabaseQueueTest extends TestCase
     }
 
     #[Test]
-    public function a_faild_job_records_the_exception_message()
+    public function a_failed_job_records_the_exception_message()
     {
         $this->queue->push(new FailedJob());
         $this->queue->run();
@@ -112,9 +111,10 @@ class DatabaseQueueTest extends TestCase
     {
         $future = time() + 60;
 
-        $driver = new class ($future) extends InMemoryDriver {
+        $driver = new class ($future) extends DatabaseDriver {
             public function __construct(private int $future)
             {
+                parent::__construct();
             }
 
             protected function now(): int
