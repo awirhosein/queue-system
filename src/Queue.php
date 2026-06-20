@@ -4,8 +4,6 @@ namespace Awirhosein\QueueSystem;
 
 class Queue
 {
-    protected int $max_attempts = 3;
-
     public function __construct(
         public QueueContract $driver = new InMemoryDriver()
     ) {
@@ -33,13 +31,12 @@ class Queue
         } catch (\Exception $e) {
 
             // retry after fail
-            if ($job['attempts'] < $this->max_attempts) {
+            if ($job['attempts'] < $job['payload']->max_attempts) {
                 $this->run();
                 return;
             }
 
             $this->remove($job['uuid']);
-
             $this->markAsFailed($job, $e->getMessage());
         }
     }

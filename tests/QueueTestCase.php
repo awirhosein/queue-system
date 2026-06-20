@@ -6,6 +6,7 @@ use Awirhosein\QueueSystem\Queue;
 use Awirhosein\QueueSystem\Worker;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Fixtures\FailedJob;
+use Tests\Fixtures\FailingJobWithMaxAttempts;
 use Tests\Fixtures\HandledJob;
 use Tests\Fixtures\Job;
 
@@ -32,10 +33,11 @@ abstract class QueueTestCase extends TestCase
     #[Test]
     public function a_worker_executes_a_job()
     {
-        $this->queue->push(new HandledJob());
+        $this->queue->push($job = new HandledJob());
 
         $this->queue->run();
 
+        $this->assertTrue($job::$handled);
         $this->assertEmpty($this->queue->jobs());
         $this->assertEmpty($this->queue->failedJobs());
     }
@@ -81,24 +83,23 @@ abstract class QueueTestCase extends TestCase
         $this->queue->push(new FailedJob(), $future);
         $this->queue->run();
 
-        $this->assertCount(0, $this->queue->failedJobs());
         $this->assertCount(1, $this->queue->jobs());
+        $this->assertCount(0, $this->queue->failedJobs());
     }
 
     #[Test]
     public function a_worker_processes_all_jobs_until_queue_is_empty()
     {
-        $worker = new Worker();
-
         $this->queue->push(new Job());
         $this->queue->push(new FailedJob());
         $this->queue->push(new FailedJob());
-        $this->queue->push(new HandledJob());
+        $this->queue->push($job = new HandledJob());
 
-        $worker->work($this->queue);
+        (new Worker())->work($this->queue);
 
-        $this->assertCount(2, $this->queue->failedJobs());
+        $this->assertTrue($job::$handled);
         $this->assertEmpty($this->queue->jobs());
+        $this->assertCount(2, $this->queue->failedJobs());
     }
 
     #[Test]
@@ -124,12 +125,10 @@ abstract class QueueTestCase extends TestCase
     #[Test]
     public function a_worker_can_run_a_specific_queue()
     {
-        $worker = new Worker();
-
         $this->queue->push(new FailedJob(), queue: 'first-queue');
         $this->queue->push(new Job(), queue: 'second-queue');
 
-        $worker->work($this->queue, 'second-queue');
+        (new Worker())->work($this->queue, 'second-queue');
 
         $this->assertCount(1, $this->queue->jobs());
         $this->assertCount(0, $this->queue->failedJobs());
@@ -140,11 +139,25 @@ abstract class QueueTestCase extends TestCase
     {
         $this->queue->push(new FailedJob(), queue: 'queue-name');
         $this->queue->run('queue-name');
-
         $this->assertCount(1, $this->queue->failedJobs());
 
         $this->queue->retry($this->queue->failedJobs()[0]['uuid']);
 
         $this->assertSame('queue-name', $this->queue->jobs()[0]['queue']);
+    }
+
+    #[Test]
+    public function a_job_can_define_its_own_max_attempts()
+    {
+        $job = new FailingJobWithMaxAttempts();
+        $job::$count = 0;
+        $job->max_attempts = 5;
+        $this->queue->push($job);
+        
+        $this->queue->run();
+
+        $this->assertSame(5, $job::$count);
+        $this->assertCount(0, $this->queue->jobs());
+        $this->assertCount(1, $this->queue->failedJobs());
     }
 }

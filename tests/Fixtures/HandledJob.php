@@ -2,14 +2,14 @@
 
 namespace Tests\Fixtures;
 
-use Awirhosein\QueueSystem\JobContract;
+use Awirhosein\QueueSystem\BaseJob;
 
-class HandledJob implements JobContract
+class HandledJob extends BaseJob
 {
-    public bool $handled = false;
+    public static bool $handled = false;
 
     public function handle(): void
     {
-        $this->handled = true;
+        static::$handled = true;
     }
 }
