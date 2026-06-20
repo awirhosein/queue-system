@@ -6,13 +6,14 @@ use Ramsey\Uuid\Uuid;
 
 class InMemoryDriver implements QueueContract
 {
-    protected array $jobs = [];
-    protected array $failed_jobs = [];
+    private array $jobs = [];
+    private array $failed_jobs = [];
 
-    public function push($job, ?int $availableAt = null): void
+    public function push($job, ?int $availableAt = null, ?string $queue = null): void
     {
         $this->jobs[] = [
             'uuid'         => Uuid::uuid4()->toString(),
+            'queue'        => $queue,
             'payload'      => $job,
             'attempts'     => 0,
             'available_at' => $availableAt,
@@ -23,14 +24,19 @@ class InMemoryDriver implements QueueContract
     {
         $this->failed_jobs[] = [
             'uuid'    => $job['uuid'],
+            'queue'   => $job['queue'],
             'payload' => $job['payload'],
             'message' => $message,
         ];
     }
 
-    public function next()
+    public function next(?string $queue = null): ?array
     {
         foreach ($this->jobs as $job) {
+            if ($queue && $job['queue'] != $queue) {
+                continue;
+            }
+
             if ($job['available_at'] <= $this->now()) {
                 return $job;
             }
@@ -43,15 +49,26 @@ class InMemoryDriver implements QueueContract
     {
         foreach ($this->failed_jobs as $key => $failed_job) {
             if ($failed_job['uuid'] == $uuid) {
-                $this->push($failed_job['payload']);
+                $this->push($failed_job['payload'], queue: $failed_job['queue']);
                 unset($this->failed_jobs[$key]);
             }
         }
     }
 
-    public function isEmpty(): bool
+    public function isEmpty(?string $queue = null): bool
     {
-        return empty($this->jobs);
+        if (! $queue) {
+            return empty($this->jobs);
+        }
+
+        $count = 0;
+        foreach ($this->jobs as $job) {
+            if ($job['queue'] == $queue) {
+                $count++;
+            }
+        }
+
+        return $count === 0;
     }
 
     protected function now(): int
@@ -59,7 +76,7 @@ class InMemoryDriver implements QueueContract
         return time();
     }
 
-    public function attempt($job): ?array
+    public function attempt(array $job): ?array
     {
         foreach ($this->jobs as &$item) {
             if ($item['uuid'] == $job['uuid']) {
@@ -79,6 +96,8 @@ class InMemoryDriver implements QueueContract
                 unset($this->jobs[$key]);
             }
         }
+
+        $this->jobs = array_values($this->jobs);
     }
 
     public function jobs(): array

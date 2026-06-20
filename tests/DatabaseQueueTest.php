@@ -152,4 +152,51 @@ class DatabaseQueueTest extends TestCase
         $this->assertCount(2, $this->queue->failedJobs());
         $this->assertEmpty($this->queue->jobs());
     }
+
+    #[Test]
+    public function a_job_can_be_assigned_to_a_named_queue()
+    {
+        $this->queue->push(new Job(), queue: 'queue-name');
+
+        $this->assertSame('queue-name', $this->queue->jobs()[0]['queue']);
+    }
+
+    #[Test]
+    public function jobs_from_other_queues_are_ignored()
+    {
+        $this->queue->push(new FailedJob(), queue: 'first-queue');
+        $this->queue->push(new Job(), queue: 'second-queue');
+
+        $this->queue->run('second-queue');
+
+        $this->assertCount(1, $this->queue->jobs());
+        $this->assertCount(0, $this->queue->failedJobs());
+    }
+
+    #[Test]
+    public function a_worker_can_run_a_specific_queue()
+    {
+        $worker = new Worker();
+
+        $this->queue->push(new FailedJob(), queue: 'first-queue');
+        $this->queue->push(new Job(), queue: 'second-queue');
+
+        $worker->work($this->queue, 'second-queue');
+
+        $this->assertCount(1, $this->queue->jobs());
+        $this->assertCount(0, $this->queue->failedJobs());
+    }
+
+    #[Test]
+    public function a_failed_job_after_retry_goes_back_to_the_same_queue()
+    {
+        $this->queue->push(new FailedJob(), queue: 'queue-name');
+        $this->queue->run('queue-name');
+
+        $this->assertCount(1, $this->queue->failedJobs());
+
+        $this->queue->retry($this->queue->failedJobs()[0]['uuid']);
+
+        $this->assertSame('queue-name', $this->queue->jobs()[0]['queue']);
+    }
 }

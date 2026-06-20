@@ -11,14 +11,14 @@ class Queue
     ) {
     }
 
-    public function push($job, ?int $availableAt = null): void
+    public function push($job, ?int $availableAt = null, ?string $queue = null): void
     {
-        $this->driver->push($job, $availableAt);
+        $this->driver->push($job, $availableAt, $queue);
     }
 
-    public function run(): void
+    public function run(?string $queue = null): void
     {
-        $job = $this->next();
+        $job = $this->next($queue);
 
         if (is_null($job)) {
             return;
@@ -28,8 +28,8 @@ class Queue
 
         try {
             $job['payload']->handle();
-
             $this->remove($job['uuid']);
+
         } catch (\Exception $e) {
 
             // retry after fail
@@ -49,9 +49,9 @@ class Queue
         $this->driver->markAsFailed($job, $message);
     }
 
-    public function next()
+    public function next(?string $queue = null): ?array
     {
-        return $this->driver->next();
+        return $this->driver->next($queue);
     }
 
     public function retry(string $uuid): void
@@ -59,12 +59,12 @@ class Queue
         $this->driver->retry($uuid);
     }
 
-    public function isEmpty(): bool
+    public function isEmpty(?string $queue = null): bool
     {
-        return $this->driver->isEmpty();
+        return $this->driver->isEmpty($queue);
     }
 
-    public function attempt($job): ?array
+    public function attempt(array $job): ?array
     {
         return $this->driver->attempt($job);
     }

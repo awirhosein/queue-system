@@ -4,17 +4,17 @@ namespace Awirhosein\QueueSystem;
 
 interface QueueContract
 {
-    public function push($job, ?int $availableAt = null): void;
+    public function push($job, ?int $availableAt = null, ?string $queue = null): void;
 
     public function markAsFailed(array $job, string $message): void;
 
-    public function next();
+    public function next(?string $queue = null): ?array;
 
     public function retry(string $uuid): void;
 
-    public function isEmpty(): bool;
+    public function isEmpty(?string $queue = null): bool;
 
-    public function attempt($job): ?array;
+    public function attempt(array $job): ?array;
 
     public function remove(string $uuid): void;
 
