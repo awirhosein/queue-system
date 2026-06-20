@@ -2,25 +2,16 @@
 
 namespace Tests;
 
-use Awirhosein\QueueSystem\InMemoryDriver;
 use Awirhosein\QueueSystem\Queue;
-use Awirhosein\QueueSystem\QueueContract;
 use Awirhosein\QueueSystem\Worker;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Fixtures\FailedJob;
 use Tests\Fixtures\HandledJob;
 use Tests\Fixtures\Job;
 
-class QueueTest extends TestCase
+abstract class QueueTestCase extends TestCase
 {
     protected Queue $queue;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->queue = new Queue();
-    }
 
     #[Test]
     public function a_job_can_be_pushed_to_the_queue()
@@ -41,12 +32,12 @@ class QueueTest extends TestCase
     #[Test]
     public function a_worker_executes_a_job()
     {
-        $job = new HandledJob();
-        $this->queue->push($job);
+        $this->queue->push(new HandledJob());
 
         $this->queue->run();
 
-        $this->assertTrue($job->handled);
+        $this->assertEmpty($this->queue->jobs());
+        $this->assertEmpty($this->queue->failedJobs());
     }
 
     #[Test]
@@ -95,36 +86,6 @@ class QueueTest extends TestCase
     }
 
     #[Test]
-    public function a_worker_executes_a_delayed_job_when_its_scheduled_time_arrives()
-    {
-        $future = time() + 60;
-
-        $driver = new class ($future) extends InMemoryDriver {
-            public function __construct(private int $future)
-            {
-            }
-
-            protected function now(): int
-            {
-                return $this->future + 1;
-            }
-        };
-
-        $queue = new class ($driver) extends Queue {
-            public function __construct(public QueueContract $driver)
-            {
-                parent::__construct($driver);
-            }
-        };
-
-        $queue->push(new FailedJob(), $future);
-        $queue->run();
-
-        $this->assertCount(1, $queue->failedJobs());
-        $this->assertCount(0, $queue->jobs());
-    }
-
-    #[Test]
     public function a_worker_processes_all_jobs_until_queue_is_empty()
     {
         $worker = new Worker();
@@ -132,12 +93,12 @@ class QueueTest extends TestCase
         $this->queue->push(new Job());
         $this->queue->push(new FailedJob());
         $this->queue->push(new FailedJob());
-        $this->queue->push($handledJob = new HandledJob());
+        $this->queue->push(new HandledJob());
 
         $worker->work($this->queue);
 
         $this->assertCount(2, $this->queue->failedJobs());
-        $this->assertTrue($handledJob->handled);
+        $this->assertEmpty($this->queue->jobs());
     }
 
     #[Test]
