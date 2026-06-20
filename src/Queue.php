@@ -9,9 +9,9 @@ class Queue
     ) {
     }
 
-    public function push($job, ?int $availableAt = null, ?string $queue = null): void
+    public function push($job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void
     {
-        $this->driver->push($job, $availableAt, $queue);
+        $this->driver->push($job, $availableAt, $queue, $priority);
     }
 
     public function run(?string $queue = null): void

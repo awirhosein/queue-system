@@ -9,6 +9,7 @@ use Tests\Fixtures\FailedJob;
 use Tests\Fixtures\FailingJobWithMaxAttempts;
 use Tests\Fixtures\HandledJob;
 use Tests\Fixtures\Job;
+use Tests\Fixtures\PriorityJob;
 
 abstract class QueueTestCase extends TestCase
 {
@@ -153,11 +154,37 @@ abstract class QueueTestCase extends TestCase
         $job::$count = 0;
         $job->max_attempts = 5;
         $this->queue->push($job);
-        
+
         $this->queue->run();
 
         $this->assertSame(5, $job::$count);
         $this->assertCount(0, $this->queue->jobs());
         $this->assertCount(1, $this->queue->failedJobs());
+    }
+
+    #[Test]
+    public function a_higher_priority_job_is_processed_first()
+    {
+        $this->queue->push(new PriorityJob('first'), priority: 5);
+        $this->queue->push(new PriorityJob('second'), priority: 10);
+        $this->queue->run();
+
+        $this->assertSame('second', PriorityJob::$priority);
+
+        $this->queue->push(new PriorityJob('first'), priority: 3);
+        $this->queue->push(new PriorityJob('second'), priority: 2);
+        $this->queue->run();
+
+        $this->assertSame('first', PriorityJob::$priority);
+    }
+
+    #[Test]
+    public function same_priority_jobs_maintain_fifo_order()
+    {
+        $this->queue->push(new PriorityJob('first'), priority: 2);
+        $this->queue->push(new PriorityJob('second'), priority: 2);
+        $this->queue->run();
+
+        $this->assertSame('first', PriorityJob::$priority);
     }
 }

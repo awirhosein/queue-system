@@ -25,6 +25,7 @@ class DatabaseDriver implements QueueContract
                 payload TEXT NOT NULL,
                 attempts INTEGER NOT NULL DEFAULT 0,
                 available_at INTEGER NULL,
+                priority INTEGER DEFAULT 0,
                 created_at INTEGER NOT NULL
             );
             
@@ -39,14 +40,15 @@ class DatabaseDriver implements QueueContract
         ");
     }
 
-    public function push($job, ?int $availableAt = null, ?string $queue = null): void
+    public function push($job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void
     {
-        $query = "INSERT INTO jobs (uuid, queue, payload, available_at, created_at) VALUES (?, ?, ?, ?, ?)";
+        $query = "INSERT INTO jobs (uuid, queue, payload, available_at, priority, created_at) VALUES (?, ?, ?, ?, ?, ?)";
         $values = [
             Uuid::uuid4()->toString(),
             $queue,
             serialize($job),
             $availableAt,
+            $priority,
             time(),
         ];
 
@@ -77,7 +79,7 @@ class DatabaseDriver implements QueueContract
             $values[] = $queue;
         }
 
-        $query .= " LIMIT 1";
+        $query .= " ORDER BY priority DESC LIMIT 1";
 
         $stmt = $this->pdo->prepare($query);
         $stmt->execute($values);

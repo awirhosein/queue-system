@@ -9,7 +9,7 @@ class InMemoryDriver implements QueueContract
     private array $jobs = [];
     private array $failed_jobs = [];
 
-    public function push($job, ?int $availableAt = null, ?string $queue = null): void
+    public function push($job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void
     {
         $this->jobs[] = [
             'uuid'         => Uuid::uuid4()->toString(),
@@ -17,6 +17,7 @@ class InMemoryDriver implements QueueContract
             'payload'      => $job,
             'attempts'     => 0,
             'available_at' => $availableAt,
+            'priority'     => $priority,
         ];
     }
 
@@ -32,6 +33,9 @@ class InMemoryDriver implements QueueContract
 
     public function next(?string $queue = null): ?array
     {
+        // sort descending by priority
+        usort($this->jobs, fn ($a, $b) => $b['priority'] <=> $a['priority']);
+
         foreach ($this->jobs as $job) {
             if ($queue && $job['queue'] != $queue) {
                 continue;

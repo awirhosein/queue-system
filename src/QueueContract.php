@@ -4,7 +4,7 @@ namespace Awirhosein\QueueSystem;
 
 interface QueueContract
 {
-    public function push($job, ?int $availableAt = null, ?string $queue = null): void;
+    public function push($job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void;
 
     public function markAsFailed(array $job, string $message): void;
 
