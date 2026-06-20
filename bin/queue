@@ -1,0 +1,36 @@
+#!/usr/bin/env php
+<?php
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use Awirhosein\QueueSystem\Queue;
+use Awirhosein\QueueSystem\Worker;
+use Awirhosein\QueueSystem\InMemoryDriver;
+use Awirhosein\QueueSystem\DatabaseDriver;
+
+$queueName = null;
+$once = false;
+
+for ($i = 1; $i < $argc; $i++) {
+    if (str_starts_with($argv[$i], '--queue=')) {
+        $queueName = substr($argv[$i], 8);
+    } elseif ($argv[$i] === '--once') {
+        $once = true;
+    } elseif ($argv[$i] === '--help' || $argv[$i] === '-h') {
+        echo "Usage: php bin/queue [--queue=name] [--once]\n";
+        exit(0);
+    }
+}
+
+$driver = new DatabaseDriver();
+$queue = new Queue($driver);
+$worker = new Worker();
+
+$queueLabel = $queueName ?? 'default';
+echo "Processing queue: {$queueLabel} \n";
+
+if ($once) {
+    $worker->runOnce($queue, $queueName);
+} else {
+    $worker->daemon($queue, $queueName);
+}

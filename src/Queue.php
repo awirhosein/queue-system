@@ -4,6 +4,11 @@ namespace Awirhosein\QueueSystem;
 
 class Queue
 {
+    private const string GRAY = "\033[90m";
+    private const string GREEN = "\033[32m";
+    private const string RED = "\033[31m";
+    private const string RESET = "\033[0m";
+
     public function __construct(
         public QueueContract $driver = new InMemoryDriver()
     ) {
@@ -22,22 +27,26 @@ class Queue
             return;
         }
 
-        $job = $this->attempt($job);
+        while (true) {
+            $job = $this->attempt($job);
 
-        try {
-            $job['payload']->handle();
-            $this->remove($job['uuid']);
+            try {
+                $this->console(self::GRAY, 'Processing', $job);
 
-        } catch (\Exception $e) {
+                $job['payload']->handle();
+                $this->remove($job['uuid']);
 
-            // retry after fail
-            if ($job['attempts'] < $job['payload']->max_attempts) {
-                $this->run();
-                return;
+                $this->console(self::GREEN, 'Processed', $job);
+                break;
+            } catch (\Exception $e) {
+                if ($job['attempts'] >= $job['payload']->max_attempts) {
+                    $this->remove($job['uuid']);
+                    $this->markAsFailed($job, $e->getMessage());
+
+                    $this->console(self::RED, 'Failed', $job);
+                    break;
+                }
             }
-
-            $this->remove($job['uuid']);
-            $this->markAsFailed($job, $e->getMessage());
         }
     }
 
@@ -79,5 +88,10 @@ class Queue
     public function failedJobs(): array
     {
         return $this->driver->failedJobs();
+    }
+
+    private function console(string $color, string $text, array $job): void
+    {
+        echo $color . date('[Y-m-d H:i:s]') . " $text: " . get_class($job['payload']) . self::RESET . PHP_EOL;
     }
 }
