@@ -179,7 +179,7 @@ abstract class QueueTestCase extends TestCase
     }
 
     #[Test]
-    public function same_priority_jobs_maintain_fifo_order()
+    public function jobs_with_equal_priority_are_processed_fifo()
     {
         $this->queue->push(new PriorityJob('first'), priority: 2);
         $this->queue->push(new PriorityJob('second'), priority: 2);

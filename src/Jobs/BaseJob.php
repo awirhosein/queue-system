@@ -1,6 +1,6 @@
 <?php
 
-namespace Awirhosein\QueueSystem;
+namespace Awirhosein\QueueSystem\Jobs;
 
 abstract class BaseJob
 {

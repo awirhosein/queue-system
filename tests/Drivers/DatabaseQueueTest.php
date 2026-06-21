@@ -1,22 +1,33 @@
 <?php
 
-namespace Tests;
+namespace Tests\Drivers;
 
-use Awirhosein\QueueSystem\InMemoryDriver;
+use Awirhosein\QueueSystem\Contracts\QueueContract;
+use Awirhosein\QueueSystem\Drivers\DatabaseDriver;
 use Awirhosein\QueueSystem\Queue;
-use Awirhosein\QueueSystem\QueueContract;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Fixtures\FailedJob;
+use Tests\QueueTestCase;
 
-class InMemoryQueueTest extends QueueTestCase
+class DatabaseQueueTest extends QueueTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
+        $this->refreshDatabase();
 
         $this->queue = new Queue(
-            new InMemoryDriver()
+            new DatabaseDriver()
         );
+    }
+
+    protected function refreshDatabase(): void
+    {
+        $pdo = new \PDO('sqlite:' . __DIR__ . '/../../database/queue.sqlite');
+        $pdo->exec("
+            DROP TABLE IF EXISTS jobs;
+            DROP TABLE IF EXISTS failed_jobs;
+        ");
     }
 
     #[Test]
@@ -24,9 +35,10 @@ class InMemoryQueueTest extends QueueTestCase
     {
         $future = time() + 60;
 
-        $driver = new class ($future) extends InMemoryDriver {
+        $driver = new class ($future) extends DatabaseDriver {
             public function __construct(private int $future)
             {
+                parent::__construct();
             }
 
             protected function now(): int

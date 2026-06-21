@@ -1,7 +1,8 @@
 <?php
 
-namespace Awirhosein\QueueSystem;
+namespace Awirhosein\QueueSystem\Drivers;
 
+use Awirhosein\QueueSystem\Contracts\QueueContract;
 use PDO;
 use Ramsey\Uuid\Uuid;
 
@@ -11,7 +12,7 @@ class DatabaseDriver implements QueueContract
 
     public function __construct()
     {
-        $this->pdo = new PDO('sqlite:' . __DIR__ . '/../database/queue.sqlite');
+        $this->pdo = new PDO('sqlite:' . __DIR__ . '/../../database/queue.sqlite');
         $this->createTables();
     }
 

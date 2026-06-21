@@ -2,6 +2,9 @@
 
 namespace Awirhosein\QueueSystem;
 
+use Awirhosein\QueueSystem\Contracts\QueueContract;
+use Awirhosein\QueueSystem\Drivers\InMemoryDriver;
+
 class Queue
 {
     private const string GRAY = "\033[90m";

@@ -1,7 +1,8 @@
 <?php
 
-namespace Awirhosein\QueueSystem;
+namespace Awirhosein\QueueSystem\Drivers;
 
+use Awirhosein\QueueSystem\Contracts\QueueContract;
 use Ramsey\Uuid\Uuid;
 
 class InMemoryDriver implements QueueContract

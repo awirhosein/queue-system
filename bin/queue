@@ -3,10 +3,9 @@
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use Awirhosein\QueueSystem\Drivers\DatabaseDriver;
 use Awirhosein\QueueSystem\Queue;
 use Awirhosein\QueueSystem\Worker;
-use Awirhosein\QueueSystem\InMemoryDriver;
-use Awirhosein\QueueSystem\DatabaseDriver;
 
 $queueName = null;
 $once = false;

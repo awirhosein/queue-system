@@ -2,7 +2,7 @@
 
 namespace Tests\Fixtures;
 
-use Awirhosein\QueueSystem\BaseJob;
+use Awirhosein\QueueSystem\Jobs\BaseJob;
 
 class Job extends BaseJob
 {
