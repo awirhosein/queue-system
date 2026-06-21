@@ -15,19 +15,10 @@ class InMemoryDriver implements QueueContract
             'uuid'         => Uuid::uuid4()->toString(),
             'queue'        => $queue,
             'payload'      => $job,
-            'attempts'     => 0,
-            'available_at' => $availableAt,
             'priority'     => $priority,
-        ];
-    }
-
-    public function markAsFailed(array $job, string $message): void
-    {
-        $this->failed_jobs[] = [
-            'uuid'    => $job['uuid'],
-            'queue'   => $job['queue'],
-            'payload' => $job['payload'],
-            'message' => $message,
+            'attempts'     => 0,
+            'reserved_at'  => null,
+            'available_at' => $availableAt,
         ];
     }
 
@@ -36,48 +27,19 @@ class InMemoryDriver implements QueueContract
         // sort descending by priority
         usort($this->jobs, fn ($a, $b) => $b['priority'] <=> $a['priority']);
 
-        foreach ($this->jobs as $job) {
+        foreach ($this->jobs as &$job) {
             if ($queue && $job['queue'] != $queue) {
                 continue;
             }
 
-            if ($job['available_at'] <= $this->now()) {
+            if (is_null($job['reserved_at']) && $job['available_at'] <= $this->now()) {
+                $job['reserved_at'] = $this->now();
+
                 return $job;
             }
         }
 
         return null;
-    }
-
-    public function retry(string $uuid): void
-    {
-        foreach ($this->failed_jobs as $key => $failed_job) {
-            if ($failed_job['uuid'] == $uuid) {
-                $this->push($failed_job['payload'], queue: $failed_job['queue']);
-                unset($this->failed_jobs[$key]);
-            }
-        }
-    }
-
-    public function isEmpty(?string $queue = null): bool
-    {
-        if (! $queue) {
-            return empty($this->jobs);
-        }
-
-        $count = 0;
-        foreach ($this->jobs as $job) {
-            if ($job['queue'] == $queue) {
-                $count++;
-            }
-        }
-
-        return $count === 0;
-    }
-
-    protected function now(): int
-    {
-        return time();
     }
 
     public function attempt(array $job): ?array
@@ -93,6 +55,16 @@ class InMemoryDriver implements QueueContract
         return null;
     }
 
+    public function markAsFailed(array $job, string $message): void
+    {
+        $this->failed_jobs[] = [
+            'uuid'    => $job['uuid'],
+            'queue'   => $job['queue'],
+            'payload' => $job['payload'],
+            'message' => $message,
+        ];
+    }
+
     public function remove(string $uuid): void
     {
         foreach ($this->jobs as $key => $value) {
@@ -102,6 +74,37 @@ class InMemoryDriver implements QueueContract
         }
 
         $this->jobs = array_values($this->jobs);
+    }
+
+    public function retry(string $uuid): void
+    {
+        foreach ($this->failed_jobs as $key => $failed_job) {
+            if ($failed_job['uuid'] == $uuid) {
+                $this->push($failed_job['payload'], queue: $failed_job['queue']);
+                unset($this->failed_jobs[$key]);
+            }
+        }
+    }
+
+    public function isEmpty(?string $queue = null): bool
+    {
+        $count = 0;
+        foreach ($this->jobs as $job) {
+            if ($queue && $job['queue'] != $queue) {
+                continue;
+            }
+
+            if (is_null($job['reserved_at'])) {
+                $count++;
+            }
+        }
+
+        return $count === 0;
+    }
+
+    protected function now(): int
+    {
+        return time();
     }
 
     public function jobs(): array

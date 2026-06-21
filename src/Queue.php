@@ -50,6 +50,11 @@ class Queue
         }
     }
 
+    public function attempt(array $job): ?array
+    {
+        return $this->driver->attempt($job);
+    }
+
     public function markAsFailed(array $job, string $message): void
     {
         $this->driver->markAsFailed($job, $message);
@@ -70,11 +75,6 @@ class Queue
         return $this->driver->isEmpty($queue);
     }
 
-    public function attempt(array $job): ?array
-    {
-        return $this->driver->attempt($job);
-    }
-
     public function remove(string $uuid): void
     {
         $this->driver->remove($uuid);
@@ -92,6 +92,6 @@ class Queue
 
     private function console(string $color, string $text, array $job): void
     {
-        echo $color . date('[Y-m-d H:i:s]') . " $text: " . get_class($job['payload']) . self::RESET . PHP_EOL;
+        echo PHP_EOL . $color . date('[Y-m-d H:i:s]') . " $text: " . get_class($job['payload']) . self::RESET;
     }
 }

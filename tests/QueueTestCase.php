@@ -187,4 +187,18 @@ abstract class QueueTestCase extends TestCase
 
         $this->assertSame('first', PriorityJob::$priority);
     }
+
+    #[Test]
+    public function two_workers_cannot_process_the_same_job()
+    {
+        $this->queue->push(new Job());
+        $this->queue->push(new Job());
+
+        $job1 = $this->queue->next();
+        $job2 = $this->queue->next();
+
+        $this->assertNotNull($job1);
+        $this->assertNotNull($job2);
+        $this->assertNotSame($job1['uuid'], $job2['uuid']);
+    }
 }

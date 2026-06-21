@@ -23,9 +23,10 @@ class DatabaseDriver implements QueueContract
                 uuid TEXT NOT NULL UNIQUE,
                 queue TEXT NULL,
                 payload TEXT NOT NULL,
-                attempts INTEGER NOT NULL DEFAULT 0,
-                available_at INTEGER NULL,
                 priority INTEGER DEFAULT 0,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                reserved_at INTEGER NULL,
+                available_at INTEGER NULL,
                 created_at INTEGER NOT NULL
             );
             
@@ -42,36 +43,30 @@ class DatabaseDriver implements QueueContract
 
     public function push($job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void
     {
-        $query = "INSERT INTO jobs (uuid, queue, payload, available_at, priority, created_at) VALUES (?, ?, ?, ?, ?, ?)";
-        $values = [
-            Uuid::uuid4()->toString(),
-            $queue,
-            serialize($job),
-            $availableAt,
-            $priority,
-            time(),
-        ];
-
-        $this->pdo->prepare($query)->execute($values);
-    }
-
-    public function markAsFailed(array $job, string $message): void
-    {
-        $query = "INSERT INTO failed_jobs (uuid, queue, payload, message, created_at) VALUES (?, ?, ?, ?, ?)";
-        $values = [
-            $job['uuid'],
-            $job['queue'],
-            serialize($job['payload']),
-            $message,
-            time(),
-        ];
-
-        $this->pdo->prepare($query)->execute($values);
+        $this->pdo
+            ->prepare("
+                INSERT INTO jobs (uuid, queue, payload, priority, available_at, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ")
+            ->execute([
+                Uuid::uuid4()->toString(),
+                $queue,
+                serialize($job),
+                $priority,
+                $availableAt,
+                $this->now(),
+            ]);
     }
 
     public function next(?string $queue = null): ?array
     {
-        $query = "SELECT * FROM jobs WHERE (available_at IS NULL OR available_at <= ?)";
+        $this->pdo->exec('BEGIN IMMEDIATE TRANSACTION');
+
+        $query = "
+            SELECT * FROM jobs
+            WHERE reserved_at IS NULL AND (available_at IS NULL OR available_at <= ?)
+        ";
+
         $values[] = $this->now();
 
         if ($queue) {
@@ -87,17 +82,62 @@ class DatabaseDriver implements QueueContract
 
         if ($job) {
             $job['payload'] = unserialize($job['payload']);
+            $this->reserve($job['uuid']);
+
+            $this->pdo->exec('COMMIT');
+
             return $job;
         }
+
+        $this->pdo->exec('COMMIT');
 
         return null;
     }
 
+    protected function reserve(string $uuid): void
+    {
+        $this->pdo
+            ->prepare("UPDATE jobs SET reserved_at = ? WHERE uuid = ?")
+            ->execute([$this->now(), $uuid]);
+    }
+
+    public function attempt(array $job): ?array
+    {
+        $job['attempts'] += 1;
+
+        $this->pdo
+            ->prepare("UPDATE jobs SET attempts = ? WHERE uuid = ?")
+            ->execute([$job['attempts'], $job['uuid']]);
+
+        return $job;
+    }
+
+    public function markAsFailed(array $job, string $message): void
+    {
+        $this->pdo
+            ->prepare("
+                INSERT INTO failed_jobs (uuid, queue, payload, message, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            ")
+            ->execute([
+                $job['uuid'],
+                $job['queue'],
+                serialize($job['payload']),
+                $message,
+                $this->now(),
+            ]);
+    }
+
+    public function remove(string $uuid): void
+    {
+        $this->pdo
+            ->prepare("DELETE FROM jobs WHERE uuid = ?")
+            ->execute([$uuid]);
+    }
+
     public function retry(string $uuid): void
     {
-        $query = "SELECT * FROM failed_jobs WHERE uuid = ?";
-
-        $stmt = $this->pdo->prepare($query);
+        $stmt = $this->pdo->prepare("SELECT * FROM failed_jobs WHERE uuid = ?");
         $stmt->execute([$uuid]);
         $failed_job = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -109,17 +149,18 @@ class DatabaseDriver implements QueueContract
         $this->push(unserialize($failed_job['payload']), queue: $failed_job['queue']);
 
         // delete from failed_jobs
-        $query = "DELETE FROM failed_jobs WHERE uuid = ?";
-        $this->pdo->prepare($query)->execute([$uuid]);
+        $this->pdo
+            ->prepare("DELETE FROM failed_jobs WHERE uuid = ?")
+            ->execute([$uuid]);
     }
 
     public function isEmpty(?string $queue = null): bool
     {
-        $query = "SELECT COUNT(*) as count FROM jobs";
+        $query = "SELECT COUNT(*) as count FROM jobs WHERE reserved_at IS NULL";
         $values = [];
 
         if ($queue) {
-            $query .= " WHERE queue = ?";
+            $query .= " AND queue = ?";
             $values[] = $queue;
         }
 
@@ -133,25 +174,6 @@ class DatabaseDriver implements QueueContract
     protected function now(): int
     {
         return time();
-    }
-
-    public function attempt(array $job): ?array
-    {
-        $job['attempts'] += 1;
-
-        $query = "UPDATE jobs SET attempts = ? WHERE uuid = ?";
-        $values = [$job['attempts'], $job['uuid']];
-
-        $this->pdo->prepare($query)->execute($values);
-
-        return $job;
-    }
-
-    public function remove(string $uuid): void
-    {
-        $this->pdo
-            ->prepare("DELETE FROM jobs WHERE uuid = ?")
-            ->execute([$uuid]);
     }
 
     public function jobs(): array
