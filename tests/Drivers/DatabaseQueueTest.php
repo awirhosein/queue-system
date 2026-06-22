@@ -16,9 +16,8 @@ class DatabaseQueueTest extends QueueTestCase
         parent::setUp();
         $this->refreshDatabase();
 
-        $this->queue = new Queue(
-            new DatabaseDriver()
-        );
+        $this->driver = new DatabaseDriver();
+        $this->queue = new Queue($this->driver);
     }
 
     protected function refreshDatabase(): void

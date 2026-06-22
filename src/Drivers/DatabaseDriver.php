@@ -9,6 +9,7 @@ use Ramsey\Uuid\Uuid;
 class DatabaseDriver implements QueueContract
 {
     protected PDO $pdo;
+    public int $visibilityTimeout = 60;
 
     public function __construct()
     {
@@ -65,9 +66,10 @@ class DatabaseDriver implements QueueContract
 
         $query = "
             SELECT * FROM jobs
-            WHERE reserved_at IS NULL AND (available_at IS NULL OR available_at <= ?)
+            WHERE (reserved_at IS NULL OR reserved_at <= ?) AND (available_at IS NULL OR available_at <= ?)
         ";
 
+        $values[] = $this->now() - $this->visibilityTimeout;
         $values[] = $this->now();
 
         if ($queue) {
@@ -159,9 +161,10 @@ class DatabaseDriver implements QueueContract
     {
         $query = "
             SELECT COUNT(*) as count FROM jobs
-            WHERE reserved_at IS NULL AND (available_at IS NULL OR available_at <= ?)
+            WHERE (reserved_at IS NULL OR reserved_at <= ?) AND (available_at IS NULL OR available_at <= ?)
         ";
 
+        $values[] = $this->now() - $this->visibilityTimeout;
         $values[] = $this->now();
 
         if ($queue) {

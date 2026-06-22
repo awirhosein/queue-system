@@ -15,9 +15,8 @@ class InMemoryQueueTest extends QueueTestCase
     {
         parent::setUp();
 
-        $this->queue = new Queue(
-            new InMemoryDriver()
-        );
+        $this->driver = new InMemoryDriver();
+        $this->queue = new Queue($this->driver);
     }
 
     #[Test]

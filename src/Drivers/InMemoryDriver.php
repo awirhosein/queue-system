@@ -9,6 +9,7 @@ class InMemoryDriver implements QueueContract
 {
     private array $jobs = [];
     private array $failed_jobs = [];
+    public int $visibilityTimeout = 60;
 
     public function push($job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void
     {
@@ -33,7 +34,10 @@ class InMemoryDriver implements QueueContract
                 continue;
             }
 
-            if (is_null($job['reserved_at']) && $job['available_at'] <= $this->now()) {
+            $isAvailable = ($job['reserved_at'] ?? 0) <= $this->now() - $this->visibilityTimeout;
+            $isDue = ($job['available_at'] ?? 0) <= $this->now();
+
+            if ($isAvailable && $isDue) {
                 $job['reserved_at'] = $this->now();
 
                 return $job;
@@ -95,7 +99,10 @@ class InMemoryDriver implements QueueContract
                 continue;
             }
 
-            if (is_null($job['reserved_at']) && $job['available_at'] <= $this->now()) {
+            $isAvailable = ($job['reserved_at'] ?? 0) <= $this->now() - $this->visibilityTimeout;
+            $isDue = ($job['available_at'] ?? 0) <= $this->now();
+
+            if ($isAvailable && $isDue) {
                 $count++;
             }
         }

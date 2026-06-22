@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use Awirhosein\QueueSystem\Contracts\QueueContract;
 use Awirhosein\QueueSystem\Queue;
 use Awirhosein\QueueSystem\Worker;
 use PHPUnit\Framework\Attributes\Test;
@@ -15,6 +16,7 @@ use Tests\Fixtures\SleepJob;
 abstract class QueueTestCase extends TestCase
 {
     protected Queue $queue;
+    protected QueueContract $driver;
 
     #[Test]
     public function a_job_can_be_pushed_to_the_queue()
@@ -215,5 +217,28 @@ abstract class QueueTestCase extends TestCase
 
         $this->assertCount(0, $this->queue->jobs());
         $this->assertCount(1, $this->queue->failedJobs());
+    }
+
+    #[Test]
+    public function a_reserved_job_is_reclaimed_after_visibility_timeout()
+    {
+        //
+        $this->queue->push(new Job());
+        $first = $this->queue->next();
+        $second = $this->queue->next();
+
+        $this->assertNotNull($first);
+        $this->assertNull($second);
+
+        //
+        $driver = new $this->driver;
+        $driver->visibilityTimeout = 0;
+        $queue = new Queue($driver);
+
+        $queue->push(new Job());
+        $first = $queue->next();
+        $second = $queue->next();
+
+        $this->assertSame($first['uuid'], $second['uuid']);
     }
 }
