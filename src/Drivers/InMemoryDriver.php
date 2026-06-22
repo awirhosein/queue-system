@@ -95,7 +95,7 @@ class InMemoryDriver implements QueueContract
                 continue;
             }
 
-            if (is_null($job['reserved_at'])) {
+            if (is_null($job['reserved_at']) && $job['available_at'] <= $this->now()) {
                 $count++;
             }
         }

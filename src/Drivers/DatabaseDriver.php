@@ -157,8 +157,12 @@ class DatabaseDriver implements QueueContract
 
     public function isEmpty(?string $queue = null): bool
     {
-        $query = "SELECT COUNT(*) as count FROM jobs WHERE reserved_at IS NULL";
-        $values = [];
+        $query = "
+            SELECT COUNT(*) as count FROM jobs
+            WHERE reserved_at IS NULL AND (available_at IS NULL OR available_at <= ?)
+        ";
+
+        $values[] = $this->now();
 
         if ($queue) {
             $query .= " AND queue = ?";
