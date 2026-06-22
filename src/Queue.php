@@ -1,9 +1,12 @@
 <?php
 
+declare(ticks=1);
+
 namespace Awirhosein\QueueSystem;
 
 use Awirhosein\QueueSystem\Contracts\QueueContract;
 use Awirhosein\QueueSystem\Drivers\InMemoryDriver;
+use Awirhosein\QueueSystem\Exceptions\TimeoutException;
 
 class Queue
 {
@@ -32,23 +35,29 @@ class Queue
 
         while (true) {
             $job = $this->attempt($job);
+            $jobClass = $job['payload'];
+
+            pcntl_signal(SIGALRM, fn () => throw new TimeoutException());
+            pcntl_alarm($jobClass->timeout);
 
             try {
                 $this->console(self::GRAY, 'Processing', $job);
 
-                $job['payload']->handle();
+                $jobClass->handle();
                 $this->remove($job['uuid']);
 
                 $this->console(self::GREEN, 'Processed', $job);
                 break;
             } catch (\Exception $e) {
-                if ($job['attempts'] >= $job['payload']->max_attempts) {
+                if ($job['attempts'] >= $jobClass->max_attempts) {
                     $this->remove($job['uuid']);
                     $this->markAsFailed($job, $e->getMessage());
 
                     $this->console(self::RED, 'Failed', $job);
                     break;
                 }
+            } finally {
+                pcntl_alarm(0);
             }
         }
     }

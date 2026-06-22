@@ -10,6 +10,7 @@ use Tests\Fixtures\FailingJobWithMaxAttempts;
 use Tests\Fixtures\HandledJob;
 use Tests\Fixtures\Job;
 use Tests\Fixtures\PriorityJob;
+use Tests\Fixtures\SleepJob;
 
 abstract class QueueTestCase extends TestCase
 {
@@ -200,5 +201,19 @@ abstract class QueueTestCase extends TestCase
         $this->assertNotNull($job1);
         $this->assertNotNull($job2);
         $this->assertNotSame($job1['uuid'], $job2['uuid']);
+    }
+
+    #[Test]
+    public function a_job_will_fail_after_timeout()
+    {
+        $job = new SleepJob(2);
+        $job->timeout = 1;
+        $job->max_attempts = 1;
+        $this->queue->push($job);
+
+        $this->queue->run();
+
+        $this->assertCount(0, $this->queue->jobs());
+        $this->assertCount(1, $this->queue->failedJobs());
     }
 }
