@@ -4,16 +4,14 @@ declare(ticks=1);
 
 namespace Awirhosein\QueueSystem;
 
+use Awirhosein\QueueSystem\Concerns\Console;
 use Awirhosein\QueueSystem\Contracts\QueueContract;
 use Awirhosein\QueueSystem\Drivers\InMemoryDriver;
 use Awirhosein\QueueSystem\Exceptions\TimeoutException;
 
 class Queue
 {
-    private const string GRAY = "\033[90m";
-    private const string GREEN = "\033[32m";
-    private const string RED = "\033[31m";
-    private const string RESET = "\033[0m";
+    use Console;
 
     public function __construct(
         public QueueContract $driver = new InMemoryDriver()
@@ -100,10 +98,5 @@ class Queue
     public function failedJobs(): array
     {
         return $this->driver->failedJobs();
-    }
-
-    private function console(string $color, string $text, array $job): void
-    {
-        echo PHP_EOL . $color . date('[Y-m-d H:i:s]') . " $text: " . get_class($job['payload']) . self::RESET;
     }
 }
