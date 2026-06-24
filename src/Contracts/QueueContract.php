@@ -18,6 +18,8 @@ interface QueueContract
 
     public function isEmpty(?string $queue = null): bool;
 
+    public function now(): int;
+
     public function jobs(): array;
 
     public function failedJobs(): array;

@@ -179,7 +179,7 @@ class DatabaseDriver implements QueueContract
         return $data['count'] === 0;
     }
 
-    protected function now(): int
+    public function now(): int
     {
         return time();
     }

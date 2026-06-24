@@ -29,7 +29,7 @@ class InMemoryQueueTest extends QueueTestCase
             {
             }
 
-            protected function now(): int
+            public function now(): int
             {
                 return $this->future + 1;
             }

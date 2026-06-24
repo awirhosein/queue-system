@@ -40,7 +40,7 @@ class DatabaseQueueTest extends QueueTestCase
                 parent::__construct();
             }
 
-            protected function now(): int
+            public function now(): int
             {
                 return $this->future + 1;
             }

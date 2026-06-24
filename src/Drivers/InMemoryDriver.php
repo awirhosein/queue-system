@@ -110,7 +110,7 @@ class InMemoryDriver implements QueueContract
         return $count === 0;
     }
 
-    protected function now(): int
+    public function now(): int
     {
         return time();
     }
