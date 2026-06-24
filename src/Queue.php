@@ -42,13 +42,13 @@ class Queue
                 $this->console(self::GRAY, 'Processing', $job);
 
                 $jobClass->handle();
-                $this->remove($job['uuid']);
+                $this->remove($job);
 
                 $this->console(self::GREEN, 'Processed', $job);
                 break;
             } catch (\Exception $e) {
                 if ($job['attempts'] >= $jobClass->max_attempts) {
-                    $this->remove($job['uuid']);
+                    $this->remove($job);
                     $this->markAsFailed($job, $e->getMessage());
 
                     $this->console(self::RED, 'Failed', $job);
@@ -85,9 +85,9 @@ class Queue
         return $this->driver->isEmpty($queue);
     }
 
-    public function remove(string $uuid): void
+    public function remove(array $job): void
     {
-        $this->driver->remove($uuid);
+        $this->driver->remove($job);
     }
 
     public function jobs(): array

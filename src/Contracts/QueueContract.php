@@ -12,7 +12,7 @@ interface QueueContract
 
     public function markAsFailed(array $job, string $message): void;
 
-    public function remove(string $uuid): void;
+    public function remove(array $job): void;
 
     public function retry(string $uuid): void;
 

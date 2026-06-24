@@ -70,10 +70,10 @@ class InMemoryDriver implements QueueContract
         ];
     }
 
-    public function remove(string $uuid): void
+    public function remove(array $job): void
     {
         foreach ($this->jobs as $key => $value) {
-            if ($value['uuid'] == $uuid) {
+            if ($value['uuid'] == $job['uuid']) {
                 unset($this->jobs[$key]);
             }
         }

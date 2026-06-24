@@ -223,9 +223,9 @@ abstract class QueueTestCase extends TestCase
     public function a_reserved_job_is_reclaimed_after_visibility_timeout()
     {
         //
-        $this->queue->push(new Job());
-        $first = $this->queue->next();
-        $second = $this->queue->next();
+        $this->queue->push(new Job(), queue: 'queue-name');
+        $first = $this->queue->next('queue-name');
+        $second = $this->queue->next('queue-name');
 
         $this->assertNotNull($first);
         $this->assertNull($second);

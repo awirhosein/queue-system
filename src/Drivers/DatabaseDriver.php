@@ -131,11 +131,11 @@ class DatabaseDriver implements QueueContract
             ]);
     }
 
-    public function remove(string $uuid): void
+    public function remove(array $job): void
     {
         $this->pdo
             ->prepare("DELETE FROM jobs WHERE uuid = ?")
-            ->execute([$uuid]);
+            ->execute([$job['uuid']]);
     }
 
     public function retry(string $uuid): void

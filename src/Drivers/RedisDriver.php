@@ -23,41 +23,86 @@ class RedisDriver implements QueueContract
         $counter = $this->client->incr('queue:push:counter');
         $priority = ($priority * 1e6) + (1e6 - $counter);
 
+        // queue name
         $this->client->sadd('queues', [$queue]);
-        $this->client->zadd("queue:$queue", [$uuid => $priority]);
+
+        // job list
+        if ($availableAt) {
+            $this->client->zadd("queue:$queue:delayed", [$uuid => $availableAt]);
+        } else {
+            $this->client->zadd("queue:$queue", [$uuid => $priority]);
+        }
 
         // job data
-        $this->client->hset("job:$uuid", 'queue', $queue);
-        $this->client->hset("job:$uuid", 'payload', serialize($job));
-        $this->client->hset("job:$uuid", 'priority', $priority);
-        $this->client->hset("job:$uuid", 'attempts', 0);
-        $this->client->hset("job:$uuid", 'reserved_at', null);
-        $this->client->hset("job:$uuid", 'available_at', $availableAt);
+        $this->client->hmset("job:$uuid", [
+            'queue'    => $queue,
+            'payload'  => serialize($job),
+            'priority' => $priority,
+            'attempts' => 0,
+        ]);
     }
 
     public function next(?string $queue = null): ?array
     {
         $queue ??= 'default';
-        $uuids = $this->client->zrevrange("queue:$queue", 0, -1);
+        $result = $this->client->zrevrange("queue:$queue", 0, 1);
 
-        foreach ($uuids as $uuid) {
-            $job = $this->client->hgetall("job:$uuid");
+        if (! empty($result)) {
+            return $this->claim($queue, $result[0]);
+        }
 
-            $isAvailable = ($job['reserved_at'] ?? 0) <= $this->now() - $this->visibilityTimeout;
-            $isDue = ($job['available_at'] ?? 0) <= $this->now();
+        $this->reclaimReserved($queue);
+        $this->reclaimDelayed($queue);
 
-            if ($isAvailable && $isDue) {
-                $this->client->hset("job:$uuid", 'reserved_at', $this->now());
+        $result = $this->client->zrevrange("queue:$queue", 0, 1);
 
-                return [
-                    ...$job,
-                    'uuid'    => $uuid,
-                    'payload' => unserialize($job['payload']),
-                ];
-            }
+        if (! empty($result)) {
+            return $this->claim($queue, $result[0]);
         }
 
         return null;
+    }
+
+    private function claim(string $queue, string $uuid): array
+    {
+        // move to reserved list
+        $this->client->zrem("queue:$queue", $uuid);
+        $this->client->zadd("queue:$queue:reserved", [$uuid => $this->now()]);
+
+        $job = $this->client->hgetall("job:$uuid");
+
+        return [
+            'uuid'     => $uuid,
+            'queue'    => $queue,
+            'attempts' => $job['attempts'],
+            'payload'  => unserialize($job['payload']),
+        ];
+    }
+
+    private function reclaimReserved(string $queue): void
+    {
+        $expiredBefore = $this->now() - $this->visibilityTimeout;
+
+        $res = $this->client->zrangebyscore("queue:$queue:reserved", 0, $expiredBefore, 'WITHSCORES');
+
+        foreach ($res as $uuid => $reservedAt) {
+            $priority = $this->client->hget("job:$uuid", 'priority');
+
+            $this->client->zadd("queue:$queue", [$uuid => $priority]);
+            $this->client->zrem("queue:$queue:reserved", $uuid);
+        }
+    }
+
+    private function reclaimDelayed(string $queue): void
+    {
+        $res = $this->client->zrangebyscore("queue:$queue:delayed", 0, $this->now(), 'WITHSCORES');
+
+        foreach ($res as $uuid => $delayed) {
+            $priority = $this->client->hget("job:$uuid", 'priority');
+
+            $this->client->zadd("queue:$queue", [$uuid => $priority]);
+            $this->client->zrem("queue:$queue:delayed", $uuid);
+        }
     }
 
     public function attempt(array $job): ?array
@@ -75,16 +120,18 @@ class RedisDriver implements QueueContract
 
         $this->client->lpush("queue:$queue:failed", $uuid);
 
-        $this->client->hset("job:$uuid", 'queue', $queue);
-        $this->client->hset("job:$uuid", 'payload', serialize($job['payload']));
-        $this->client->hset("job:$uuid", 'message', $message);
+        $this->client->hmset("job:$uuid", [
+            'queue'   => $queue,
+            'payload' => serialize($job['payload']),
+            'message' => $message,
+        ]);
     }
 
-    public function remove(string $uuid): void
+    public function remove(array $job): void
     {
-        $job = $this->client->hgetall("job:$uuid");
-        $this->client->zrem("queue:{$job['queue']}", $uuid);
-        $this->client->del("job:$uuid");
+        $this->client->zrem("queue:{$job['queue']}:reserved", $job['uuid']);
+        $this->client->zrem("queue:{$job['queue']}", $job['uuid']);
+        $this->client->del("job:{$job['uuid']}");
     }
 
     public function retry(string $uuid): void
@@ -104,19 +151,14 @@ class RedisDriver implements QueueContract
 
     public function isEmpty(?string $queue = null): bool
     {
-        $count = 0;
         $queue ??= 'default';
-        $uuids = $this->client->zrange("queue:$queue", 0, -1);
 
-        foreach ($uuids as $uuid) {
-            $job = $this->client->hgetall("job:$uuid");
+        $this->reclaimReserved($queue);
+        $this->reclaimDelayed($queue);
 
-            if (($job['available_at'] ?? 0) <= $this->now()) {
-                $count++;
-            }
-        }
+        $res = $this->client->zrange("queue:$queue", 0, 1);
 
-        return $count === 0;
+        return empty($res);
     }
 
     public function now(): int
@@ -130,6 +172,9 @@ class RedisDriver implements QueueContract
 
         foreach ($this->client->smembers('queues') as $queue) {
             $uuids = $this->client->zrange("queue:$queue", 0, -1);
+            $delayedUuids = $this->client->zrange("queue:$queue:delayed", 0, -1);
+
+            $uuids = array_merge($uuids, $delayedUuids);
 
             foreach ($uuids as $uuid) {
                 $job = $this->client->hgetall("job:$uuid");
