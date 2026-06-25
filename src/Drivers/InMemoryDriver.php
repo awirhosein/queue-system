@@ -3,6 +3,7 @@
 namespace Awirhosein\QueueSystem\Drivers;
 
 use Awirhosein\QueueSystem\Contracts\QueueContract;
+use Awirhosein\QueueSystem\Jobs\BaseJob;
 use Ramsey\Uuid\Uuid;
 
 class InMemoryDriver implements QueueContract
@@ -11,7 +12,7 @@ class InMemoryDriver implements QueueContract
     private array $failed_jobs = [];
     public int $visibilityTimeout = 60;
 
-    public function push($job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void
+    public function push(BaseJob $job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void
     {
         $this->jobs[] = [
             'uuid'         => Uuid::uuid4()->toString(),

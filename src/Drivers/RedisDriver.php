@@ -3,6 +3,7 @@
 namespace Awirhosein\QueueSystem\Drivers;
 
 use Awirhosein\QueueSystem\Contracts\QueueContract;
+use Awirhosein\QueueSystem\Jobs\BaseJob;
 use Predis\Client;
 use Ramsey\Uuid\Uuid;
 
@@ -16,7 +17,7 @@ class RedisDriver implements QueueContract
         $this->client = new Client('tcp://127.0.0.1:6379');
     }
 
-    public function push($job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void
+    public function push(BaseJob $job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void
     {
         $queue ??= 'default';
         $uuid = Uuid::uuid4()->toString();

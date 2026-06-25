@@ -3,6 +3,7 @@
 namespace Awirhosein\QueueSystem\Drivers;
 
 use Awirhosein\QueueSystem\Contracts\QueueContract;
+use Awirhosein\QueueSystem\Jobs\BaseJob;
 use PDO;
 use Ramsey\Uuid\Uuid;
 
@@ -43,7 +44,7 @@ class DatabaseDriver implements QueueContract
         ");
     }
 
-    public function push($job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void
+    public function push(BaseJob $job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void
     {
         $this->pdo
             ->prepare("

@@ -2,9 +2,11 @@
 
 namespace Awirhosein\QueueSystem\Contracts;
 
+use Awirhosein\QueueSystem\Jobs\BaseJob;
+
 interface QueueContract
 {
-    public function push($job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void;
+    public function push(BaseJob $job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void;
 
     public function next(?string $queue = null): ?array;
 

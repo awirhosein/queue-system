@@ -1,8 +1,8 @@
 <?php
 
-declare(ticks=1);
-
 namespace Awirhosein\QueueSystem;
+
+pcntl_async_signals(true);
 
 use Awirhosein\QueueSystem\Concerns\Console;
 use Awirhosein\QueueSystem\Exceptions\TimeoutException;
@@ -59,21 +59,21 @@ class Worker
 
         while (true) {
             $job = $this->queue->attempt($job);
-            $jobClass = $job['payload'];
+            $jobInstance = $job['payload'];
 
             pcntl_signal(SIGALRM, fn () => throw new TimeoutException());
-            pcntl_alarm($jobClass->timeout);
+            pcntl_alarm($jobInstance->timeout);
 
             try {
                 $this->console(self::GRAY, 'Processing', $job);
 
-                $jobClass->handle();
+                $jobInstance->handle();
                 $this->queue->remove($job);
 
                 $this->console(self::GREEN, 'Processed', $job);
                 break;
             } catch (\Exception $e) {
-                if ($job['attempts'] >= $jobClass->max_attempts) {
+                if ($job['attempts'] >= $jobInstance->max_attempts) {
                     $this->queue->remove($job);
                     $this->queue->markAsFailed($job, $e->getMessage());
 
