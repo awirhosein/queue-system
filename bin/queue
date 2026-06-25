@@ -4,15 +4,19 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Awirhosein\QueueSystem\Drivers\DatabaseDriver;
+use Awirhosein\QueueSystem\Drivers\RedisDriver;
 use Awirhosein\QueueSystem\Queue;
 use Awirhosein\QueueSystem\Worker;
 
 $queueName = null;
+$driverName = null;
 $once = false;
 
 for ($i = 1; $i < $argc; $i++) {
     if (str_starts_with($argv[$i], '--queue=')) {
         $queueName = substr($argv[$i], 8);
+    } elseif (str_starts_with($argv[$i], '--driver=')) {
+        $driverName = substr($argv[$i], 9);
     } elseif ($argv[$i] === '--once') {
         $once = true;
     } elseif ($argv[$i] === '--help' || $argv[$i] === '-h') {
@@ -21,7 +25,13 @@ for ($i = 1; $i < $argc; $i++) {
     }
 }
 
-$driver = new DatabaseDriver();
+$driver = match ($driverName) {
+    'redis' => new RedisDriver(),
+    null, 'database' => new DatabaseDriver(),
+    default => throw new \InvalidArgumentException("Invalid driver [$driverName].")
+};
+
+
 $queue = new Queue($driver);
 $worker = new Worker();
 
