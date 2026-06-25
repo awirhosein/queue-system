@@ -32,13 +32,13 @@ $driver = match ($driverName) {
 };
 
 $queue = new Queue($driver);
-$worker = new Worker();
+$worker = new Worker($queue);
 
 $queueLabel = $queueName ?? 'default';
 echo "Processing queue: {$queueLabel} \n";
 
 if ($once) {
-    $worker->runOnce($queue, $queueName);
+    $worker->runOnce($queueName);
 } else {
-    $worker->daemon($queue, $queueName);
+    $worker->daemon($queueName);
 }

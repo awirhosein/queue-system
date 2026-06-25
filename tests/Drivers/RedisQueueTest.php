@@ -4,6 +4,7 @@ namespace Tests\Drivers;
 
 use Awirhosein\QueueSystem\Drivers\RedisDriver;
 use Awirhosein\QueueSystem\Queue;
+use Awirhosein\QueueSystem\Worker;
 use PHPUnit\Framework\Attributes\Test;
 use Predis\Client;
 use Tests\Fixtures\FailedJob;
@@ -18,6 +19,7 @@ class RedisQueueTest extends QueueTestCase
 
         $this->driver = new RedisDriver();
         $this->queue = new Queue($this->driver);
+        $this->worker = new Worker($this->queue);
     }
 
     private function refresh(): void
@@ -44,9 +46,10 @@ class RedisQueueTest extends QueueTestCase
         };
 
         $queue = new Queue($driver);
+        $worker = new Worker($queue);
 
         $queue->push(new FailedJob(), $future);
-        $queue->run();
+        $worker->runOnce();
 
         $this->assertCount(1, $queue->failedJobs());
         $this->assertCount(0, $queue->jobs());

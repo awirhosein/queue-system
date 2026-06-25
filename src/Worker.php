@@ -1,22 +1,34 @@
 <?php
 
+declare(ticks=1);
+
 namespace Awirhosein\QueueSystem;
+
+use Awirhosein\QueueSystem\Concerns\Console;
+use Awirhosein\QueueSystem\Exceptions\TimeoutException;
 
 class Worker
 {
-    public function work(Queue $queue, ?string $queueName = null): void
+    use Console;
+
+    public function __construct(
+        public Queue $queue
+    ) {
+    }
+
+    public function runOnce(?string $queueName = null): void
     {
-        while (! $queue->isEmpty($queueName)) {
-            $queue->run($queueName);
+        $this->run($queueName);
+    }
+
+    public function work(?string $queueName = null): void
+    {
+        while (! $this->queue->isEmpty($queueName)) {
+            $this->run($queueName);
         }
     }
 
-    public function runOnce(Queue $queue, ?string $queueName = null): void
-    {
-        $queue->run($queueName);
-    }
-
-    public function daemon(Queue $queue, ?string $queueName = null): void
+    public function daemon(?string $queueName = null): void
     {
         $running = true;
 
@@ -28,11 +40,48 @@ class Worker
         });
 
         while ($running) {
-            $queue->run($queueName);
+            $this->run($queueName);
             pcntl_signal_dispatch();
 
-            if ($running && $queue->isEmpty($queueName)) {
+            if ($running && $this->queue->isEmpty($queueName)) {
                 sleep(1);
+            }
+        }
+    }
+
+    private function run(?string $queueName = null): void
+    {
+        $job = $this->queue->next($queueName);
+
+        if (is_null($job)) {
+            return;
+        }
+
+        while (true) {
+            $job = $this->queue->attempt($job);
+            $jobClass = $job['payload'];
+
+            pcntl_signal(SIGALRM, fn () => throw new TimeoutException());
+            pcntl_alarm($jobClass->timeout);
+
+            try {
+                $this->console(self::GRAY, 'Processing', $job);
+
+                $jobClass->handle();
+                $this->queue->remove($job);
+
+                $this->console(self::GREEN, 'Processed', $job);
+                break;
+            } catch (\Exception $e) {
+                if ($job['attempts'] >= $jobClass->max_attempts) {
+                    $this->queue->remove($job);
+                    $this->queue->markAsFailed($job, $e->getMessage());
+
+                    $this->console(self::RED, 'Failed', $job);
+                    break;
+                }
+            } finally {
+                pcntl_alarm(0);
             }
         }
     }

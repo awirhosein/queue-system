@@ -4,6 +4,7 @@ namespace Tests\Drivers;
 
 use Awirhosein\QueueSystem\Drivers\InMemoryDriver;
 use Awirhosein\QueueSystem\Queue;
+use Awirhosein\QueueSystem\Worker;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Fixtures\FailedJob;
 use Tests\QueueTestCase;
@@ -16,6 +17,7 @@ class InMemoryQueueTest extends QueueTestCase
 
         $this->driver = new InMemoryDriver();
         $this->queue = new Queue($this->driver);
+        $this->worker = new Worker($this->queue);
     }
 
     #[Test]
@@ -35,9 +37,10 @@ class InMemoryQueueTest extends QueueTestCase
         };
 
         $queue = new Queue($driver);
+        $worker = new Worker($queue);
 
         $queue->push(new FailedJob(), $future);
-        $queue->run();
+        $worker->runOnce();
 
         $this->assertCount(1, $queue->failedJobs());
         $this->assertCount(0, $queue->jobs());
