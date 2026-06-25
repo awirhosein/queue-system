@@ -23,17 +23,14 @@ class RedisDriver implements QueueContract
         $counter = $this->client->incr('queue:push:counter');
         $priority = ($priority * 1e6) + (1e6 - $counter);
 
-        // queue name
         $this->client->sadd('queues', [$queue]);
 
-        // job list
         if ($availableAt) {
             $this->client->zadd("queue:$queue:delayed", [$uuid => $availableAt]);
         } else {
             $this->client->zadd("queue:$queue", [$uuid => $priority]);
         }
 
-        // job data
         $this->client->hmset("job:$uuid", [
             'queue'    => $queue,
             'payload'  => serialize($job),
@@ -65,7 +62,6 @@ class RedisDriver implements QueueContract
 
     private function claim(string $queue, string $uuid): array
     {
-        // move to reserved list
         $this->client->zrem("queue:$queue", $uuid);
         $this->client->zadd("queue:$queue:reserved", [$uuid => $this->now()]);
 

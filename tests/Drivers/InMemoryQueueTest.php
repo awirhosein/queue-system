@@ -2,7 +2,6 @@
 
 namespace Tests\Drivers;
 
-use Awirhosein\QueueSystem\Contracts\QueueContract;
 use Awirhosein\QueueSystem\Drivers\InMemoryDriver;
 use Awirhosein\QueueSystem\Queue;
 use PHPUnit\Framework\Attributes\Test;
@@ -35,12 +34,7 @@ class InMemoryQueueTest extends QueueTestCase
             }
         };
 
-        $queue = new class ($driver) extends Queue {
-            public function __construct(public QueueContract $driver)
-            {
-                parent::__construct($driver);
-            }
-        };
+        $queue = new Queue($driver);
 
         $queue->push(new FailedJob(), $future);
         $queue->run();

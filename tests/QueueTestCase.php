@@ -27,7 +27,7 @@ abstract class QueueTestCase extends TestCase
     }
 
     #[Test]
-    public function a_worker_can_retrieve_the_next_pending_job()
+    public function the_next_pending_job_can_be_retrieved()
     {
         $this->queue->push(new Job());
 
@@ -35,7 +35,7 @@ abstract class QueueTestCase extends TestCase
     }
 
     #[Test]
-    public function a_worker_executes_a_job()
+    public function a_job_can_be_processed()
     {
         $this->queue->push($job = new HandledJob());
 
@@ -81,7 +81,7 @@ abstract class QueueTestCase extends TestCase
     }
 
     #[Test]
-    public function a_worker_ignores_jobs_that_are_not_yet_available()
+    public function delayed_jobs_are_skipped_during_processing()
     {
         $future = time() + 60;
         $this->queue->push(new FailedJob(), $future);
@@ -192,7 +192,7 @@ abstract class QueueTestCase extends TestCase
     }
 
     #[Test]
-    public function two_workers_cannot_process_the_same_job()
+    public function a_job_is_not_returned_twice()
     {
         $this->queue->push(new Job());
         $this->queue->push(new Job());

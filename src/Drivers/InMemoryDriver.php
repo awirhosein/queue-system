@@ -26,7 +26,6 @@ class InMemoryDriver implements QueueContract
 
     public function next(?string $queue = null): ?array
     {
-        // sort descending by priority
         usort($this->jobs, fn ($a, $b) => $b['priority'] <=> $a['priority']);
 
         foreach ($this->jobs as &$job) {

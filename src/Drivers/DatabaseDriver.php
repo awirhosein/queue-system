@@ -148,10 +148,8 @@ class DatabaseDriver implements QueueContract
             return;
         }
 
-        // add to jobs
         $this->push(unserialize($failed_job['payload']), queue: $failed_job['queue']);
 
-        // delete from failed_jobs
         $this->pdo
             ->prepare("DELETE FROM failed_jobs WHERE uuid = ?")
             ->execute([$uuid]);

@@ -31,7 +31,6 @@ $driver = match ($driverName) {
     default => throw new \InvalidArgumentException("Invalid driver [$driverName].")
 };
 
-
 $queue = new Queue($driver);
 $worker = new Worker();
 
