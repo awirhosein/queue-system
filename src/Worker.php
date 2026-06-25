@@ -18,10 +18,20 @@ class Worker
 
     public function daemon(Queue $queue, ?string $queueName = null): void
     {
-        while (true) {
-            $queue->run($queueName);
+        $running = true;
 
-            if ($queue->isEmpty($queueName)) {
+        pcntl_signal(SIGTERM, function () use (&$running) {
+            $running = false;
+        });
+        pcntl_signal(SIGINT, function () use (&$running) {
+            $running = false;
+        });
+
+        while ($running) {
+            $queue->run($queueName);
+            pcntl_signal_dispatch();
+
+            if ($running && $queue->isEmpty($queueName)) {
                 sleep(1);
             }
         }
