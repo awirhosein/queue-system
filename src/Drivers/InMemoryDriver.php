@@ -9,7 +9,7 @@ use Ramsey\Uuid\Uuid;
 class InMemoryDriver implements QueueContract
 {
     private array $jobs = [];
-    private array $failed_jobs = [];
+    private array $failedJobs = [];
     public int $visibilityTimeout = 60;
 
     public function push(BaseJob $job, ?int $availableAt = null, ?string $queue = null, ?int $priority = 0): void
@@ -62,7 +62,7 @@ class InMemoryDriver implements QueueContract
 
     public function markAsFailed(array $job, string $message): void
     {
-        $this->failed_jobs[] = [
+        $this->failedJobs[] = [
             'uuid'    => $job['uuid'],
             'queue'   => $job['queue'],
             'payload' => $job['payload'],
@@ -83,10 +83,10 @@ class InMemoryDriver implements QueueContract
 
     public function retry(string $uuid): void
     {
-        foreach ($this->failed_jobs as $key => $failed_job) {
-            if ($failed_job['uuid'] == $uuid) {
-                $this->push($failed_job['payload'], queue: $failed_job['queue']);
-                unset($this->failed_jobs[$key]);
+        foreach ($this->failedJobs as $key => $failedJob) {
+            if ($failedJob['uuid'] == $uuid) {
+                $this->push($failedJob['payload'], queue: $failedJob['queue']);
+                unset($this->failedJobs[$key]);
             }
         }
     }
@@ -122,6 +122,6 @@ class InMemoryDriver implements QueueContract
 
     public function failedJobs(): array
     {
-        return $this->failed_jobs;
+        return $this->failedJobs;
     }
 }

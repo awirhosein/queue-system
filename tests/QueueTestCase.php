@@ -156,7 +156,7 @@ abstract class QueueTestCase extends TestCase
     {
         $job = new FailingJobWithMaxAttempts();
         $job::$count = 0;
-        $job->max_attempts = 5;
+        $job->maxAttempts = 5;
         $this->queue->push($job);
 
         $this->worker->runOnce();
@@ -211,7 +211,7 @@ abstract class QueueTestCase extends TestCase
     {
         $job = new SleepJob(2);
         $job->timeout = 1;
-        $job->max_attempts = 1;
+        $job->maxAttempts = 1;
         $this->queue->push($job);
 
         $this->worker->runOnce();

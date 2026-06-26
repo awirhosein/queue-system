@@ -73,7 +73,7 @@ class Worker
                 $this->console(self::GREEN, 'Processed', $job);
                 break;
             } catch (\Exception $e) {
-                if ($job['attempts'] >= $jobInstance->max_attempts) {
+                if ($job['attempts'] >= $jobInstance->maxAttempts) {
                     $this->queue->remove($job);
                     $this->queue->markAsFailed($job, $e->getMessage());
 

@@ -143,13 +143,13 @@ class DatabaseDriver implements QueueContract
     {
         $stmt = $this->pdo->prepare("SELECT * FROM failed_jobs WHERE uuid = ?");
         $stmt->execute([$uuid]);
-        $failed_job = $stmt->fetch(PDO::FETCH_ASSOC);
+        $failedJob = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (! $failed_job) {
+        if (! $failedJob) {
             return;
         }
 
-        $this->push(unserialize($failed_job['payload']), queue: $failed_job['queue']);
+        $this->push(unserialize($failedJob['payload']), queue: $failedJob['queue']);
 
         $this->pdo
             ->prepare("DELETE FROM failed_jobs WHERE uuid = ?")
