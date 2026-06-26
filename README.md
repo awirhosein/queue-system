@@ -16,3 +16,30 @@ to understand how queue systems work, from job storage and scheduling to worker 
 - Daemon worker with graceful shutdown support
 - Failed job handling with retry support
 - **57 tests**, **120 assertions** run identically across all drivers
+
+
+## Structure
+
+```text
+queue-system/
+├── bin/
+│   └── queue                   # CLI entry point
+├── src/
+│   ├── Concerns/
+│   ├── Contracts/
+│   ├── Drivers/
+│   │   ├── DatabaseDriver.php
+│   │   ├── InMemoryDriver.php
+│   │   └── RedisDriver.php
+│   ├── Exceptions/
+│   ├── Jobs/
+│   ├── Queue.php
+│   └── Worker.php
+└── tests/
+    ├── Drivers/
+    │   ├── DatabaseQueueTest.php
+    │   ├── InMemoryQueueTest.php
+    │   └── RedisQueueTest.php
+    ├── Fixtures/
+    └── QueueTestCase.php       # Shared test suite across all drivers
+```
